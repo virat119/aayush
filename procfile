@@ -1,3 +1,4 @@
 web: python main.py
 web: python sonu.py
 web: python jaban.py
+web: python insaf.py
