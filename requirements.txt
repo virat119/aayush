@@ -9,4 +9,5 @@ typing-extensions==4.0.0
 Werkzeug==2.0.2
 zipp==3.6.0
 requests==2.26.0
+gunicorn
 
