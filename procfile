@@ -1,4 +1,4 @@
 web: gunicorn -w 4 -b 0.0.0.0:5000 --timeout 60 --access-logfile '-' --error-logfile '-' main:app
 web: python sonu.py
-web: python jaban.py
+web: python ran.py
 web: python insaf.py
